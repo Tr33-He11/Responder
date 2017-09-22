@@ -62,11 +62,17 @@ settings.Config.ExpandIPRanges()
 if settings.Config.AnalyzeMode:
 	print color('[i] Responder is in analyze mode. No NBT-NS, LLMNR, MDNS requests will be poisoned.', 3, 1)
 
+#Create the DB, before we start Responder.
+CreateResponderDb()
+
 class ThreadingUDPServer(ThreadingMixIn, UDPServer):
 	def server_bind(self):
 		if OsInterfaceIsSupported():
 			try:
-				self.socket.setsockopt(socket.SOL_SOCKET, 25, settings.Config.Bind_To+'\0')
+                                if settings.Config.Bind_To_ALL:
+                                	pass
+                                else:
+					self.socket.setsockopt(socket.SOL_SOCKET, 25, settings.Config.Interface+'\0')
 			except:
 				pass
 		UDPServer.server_bind(self)
@@ -75,7 +81,10 @@ class ThreadingTCPServer(ThreadingMixIn, TCPServer):
 	def server_bind(self):
 		if OsInterfaceIsSupported():
 			try:
-				self.socket.setsockopt(socket.SOL_SOCKET, 25, settings.Config.Bind_To+'\0')
+                                if settings.Config.Bind_To_ALL:
+                                	pass
+                                else:
+					self.socket.setsockopt(socket.SOL_SOCKET, 25, settings.Config.Interface+'\0')
 			except:
 				pass
 		TCPServer.server_bind(self)
@@ -84,7 +93,10 @@ class ThreadingTCPServerAuth(ThreadingMixIn, TCPServer):
 	def server_bind(self):
 		if OsInterfaceIsSupported():
 			try:
-				self.socket.setsockopt(socket.SOL_SOCKET, 25, settings.Config.Bind_To+'\0')
+                                if settings.Config.Bind_To_ALL:
+                                	pass
+                                else:
+					self.socket.setsockopt(socket.SOL_SOCKET, 25, settings.Config.Interface+'\0')
 			except:
 				pass
                 self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack('ii', 1, 0))
@@ -101,7 +113,10 @@ class ThreadingUDPMDNSServer(ThreadingMixIn, UDPServer):
 
 		if OsInterfaceIsSupported():
 			try:
-				self.socket.setsockopt(socket.SOL_SOCKET, 25, settings.Config.Bind_To+'\0')
+                                if settings.Config.Bind_To_ALL:
+                                	pass
+                                else:
+					self.socket.setsockopt(socket.SOL_SOCKET, 25, settings.Config.Interface+'\0')
 			except:
 				pass
 		UDPServer.server_bind(self)
@@ -109,7 +124,6 @@ class ThreadingUDPMDNSServer(ThreadingMixIn, UDPServer):
 class ThreadingUDPLLMNRServer(ThreadingMixIn, UDPServer):
 	def server_bind(self):
 		MADDR = "224.0.0.252"
-
 		self.socket.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
 		self.socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 255)
 		
@@ -117,7 +131,10 @@ class ThreadingUDPLLMNRServer(ThreadingMixIn, UDPServer):
 		
 		if OsInterfaceIsSupported():
 			try:
-				self.socket.setsockopt(socket.SOL_SOCKET, 25, settings.Config.Bind_To+'\0')
+                                if settings.Config.Bind_To_ALL:
+                                	pass
+                                else:
+					self.socket.setsockopt(socket.SOL_SOCKET, 25, settings.Config.Interface+'\0')
 			except:
 				pass
 		UDPServer.server_bind(self)
@@ -130,7 +147,7 @@ ThreadingTCPServerAuth.allow_reuse_address = 1
 
 def serve_thread_udp_broadcast(host, port, handler):
 	try:
-		server = ThreadingUDPServer(('', port), handler)
+		server = ThreadingUDPServer((host, port), handler)
 		server.serve_forever()
 	except:
 		print color("[!] ", 1, 1) + "Error starting UDP server on port " + str(port) + ", check permissions or other servers running."
@@ -150,12 +167,13 @@ def serve_LLMNR_poisoner(host, port, handler):
 		server = ThreadingUDPLLMNRServer((host, port), handler)
 		server.serve_forever()
 	except:
+                raise
 		print color("[!] ", 1, 1) + "Error starting UDP server on port " + str(port) + ", check permissions or other servers running."
 
 def serve_thread_udp(host, port, handler):
 	try:
 		if OsInterfaceIsSupported():
-			server = ThreadingUDPServer((settings.Config.Bind_To, port), handler)
+			server = ThreadingUDPServer((host, port), handler)
 			server.serve_forever()
 		else:
 			server = ThreadingUDPServer((host, port), handler)
@@ -166,7 +184,7 @@ def serve_thread_udp(host, port, handler):
 def serve_thread_tcp(host, port, handler):
 	try:
 		if OsInterfaceIsSupported():
-			server = ThreadingTCPServer((settings.Config.Bind_To, port), handler)
+			server = ThreadingTCPServer((host, port), handler)
 			server.serve_forever()
 		else:
 			server = ThreadingTCPServer((host, port), handler)
@@ -177,7 +195,7 @@ def serve_thread_tcp(host, port, handler):
 def serve_thread_tcp_auth(host, port, handler):
 	try:
 		if OsInterfaceIsSupported():
-			server = ThreadingTCPServerAuth((settings.Config.Bind_To, port), handler)
+			server = ThreadingTCPServerAuth((host, port), handler)
 			server.serve_forever()
 		else:
 			server = ThreadingTCPServerAuth((host, port), handler)
@@ -192,7 +210,7 @@ def serve_thread_SSL(host, port, handler):
 		key =  os.path.join(settings.Config.ResponderPATH, settings.Config.SSLKey)
 
 		if OsInterfaceIsSupported():
-			server = ThreadingTCPServer((settings.Config.Bind_To, port), handler)
+			server = ThreadingTCPServer((host, port), handler)
 			server.socket = ssl.wrap_socket(server.socket, certfile=cert, keyfile=key, server_side=True)
 			server.serve_forever()
 		else:
@@ -223,8 +241,8 @@ def main():
 			threads.append(Thread(target=serve_thread_tcp, args=('', 80, HTTP,)))
 
 		if settings.Config.SSL_On_Off:
-			from servers.HTTP import HTTPS
-			threads.append(Thread(target=serve_thread_SSL, args=('', 443, HTTPS,)))
+			from servers.HTTP import HTTP
+			threads.append(Thread(target=serve_thread_SSL, args=('', 443, HTTP,)))
 
 		if settings.Config.WPAD_On_Off:
 			from servers.HTTP_Proxy import HTTP_Proxy
@@ -250,8 +268,9 @@ def main():
 			threads.append(Thread(target=serve_thread_tcp, args=('', 88, KerbTCP,)))
 
 		if settings.Config.SQL_On_Off:
-			from servers.MSSQL import MSSQL
+			from servers.MSSQL import MSSQL, MSSQLBrowser
 			threads.append(Thread(target=serve_thread_tcp, args=('', 1433, MSSQL,)))
+			threads.append(Thread(target=serve_thread_udp_broadcast, args=('', 1434, MSSQLBrowser,)))
 
 		if settings.Config.FTP_On_Off:
 			from servers.FTP import FTP

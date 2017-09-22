@@ -20,7 +20,7 @@ import subprocess
 
 from utils import *
 
-__version__ = 'Responder 2.3.2.4'
+__version__ = 'Responder 2.3.3.6'
 
 class Settings:
 	
@@ -67,6 +67,10 @@ class Settings:
 
 		if options.Interface is None and utils.IsOsX() is False:
 			print utils.color("Error: -I <if> mandatory option is missing", 1)
+			sys.exit(-1)
+
+		if options.Interface == "ALL" and options.OURIP == None:
+			print utils.color("Error: -i is missing.\nWhen using -I ALL you need to provide your current ip address", 1)
 			sys.exit(-1)
 
 		# Config parsing
@@ -175,20 +179,35 @@ class Settings:
 		if self.HtmlToInject is None:
 			self.HtmlToInject = ''
 
-                self.Bind_To = utils.FindLocalIP(self.Interface, self.OURIP)
-		self.IP_aton         = socket.inet_aton(self.Bind_To)
+                self.Bind_To         = utils.FindLocalIP(self.Interface, self.OURIP)
+
+                if self.Interface == "ALL":
+                	self.Bind_To_ALL  = True
+                else:
+                        self.Bind_To_ALL  = False
+
+                if self.Interface == "ALL":
+                	self.IP_aton   = socket.inet_aton(self.OURIP)
+                else:
+                	self.IP_aton   = socket.inet_aton(self.Bind_To)
+
 		self.Os_version      = sys.platform
 
 		# Set up Challenge
 		self.NumChal = config.get('Responder Core', 'Challenge')
+                if self.NumChal.lower() == 'random':
+                   self.NumChal = "random"
 
-		if len(self.NumChal) is not 16:
+		if len(self.NumChal) is not 16 and not "random":
 			print utils.color("[!] The challenge must be exactly 16 chars long.\nExample: 1122334455667788", 1)
 			sys.exit(-1)
 
 		self.Challenge = ""
-		for i in range(0, len(self.NumChal),2):
-			self.Challenge += self.NumChal[i:i+2].decode("hex")
+                if self.NumChal.lower() == 'random':
+                   pass
+                else: 
+		   for i in range(0, len(self.NumChal),2):
+	               self.Challenge += self.NumChal[i:i+2].decode("hex")
 
 		# Set up logging
 		logging.basicConfig(filename=self.SessionLogFile, level=logging.INFO, format='%(asctime)s - %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
@@ -208,12 +227,35 @@ class Settings:
 		self.AnalyzeLogger = logging.getLogger('Analyze Log')
 		self.AnalyzeLogger.addHandler(ALog_Handler)
                 
-                NetworkCard = subprocess.check_output(["ifconfig", "-a"])
-                DNS = subprocess.check_output(["cat", "/etc/resolv.conf"])
-                RoutingInfo = subprocess.check_output(["netstat", "-rn"])
-                Message = "Current environment is:\nNetwork Config:\n%s\nDNS Settings:\n%s\nRouting info:\n%s\n\n"%(NetworkCard,DNS,RoutingInfo)
-                utils.DumpConfig(self.ResponderConfigDump, Message)
-                utils.DumpConfig(self.ResponderConfigDump,str(self))
+		try:
+			NetworkCard = subprocess.check_output(["ifconfig", "-a"])
+		except:
+			try:
+				NetworkCard = subprocess.check_output(["ip", "address", "show"])
+			except subprocess.CalledProcessError as ex:
+				NetworkCard = "Error fetching Network Interfaces:", ex
+				pass
+		try:
+			DNS = subprocess.check_output(["cat", "/etc/resolv.conf"])
+		except subprocess.CalledProcessError as ex:
+			DNS = "Error fetching DNS configuration:", ex
+			pass
+		try:
+			RoutingInfo = subprocess.check_output(["netstat", "-rn"])
+		except:
+			try:
+				RoutingInfo = subprocess.check_output(["ip", "route", "show"])
+			except subprocess.CalledProcessError as ex:
+				RoutingInfo = "Error fetching Routing information:", ex
+				pass
+
+		Message = "Current environment is:\nNetwork Config:\n%s\nDNS Settings:\n%s\nRouting info:\n%s\n\n"%(NetworkCard,DNS,RoutingInfo)
+		try:
+			utils.DumpConfig(self.ResponderConfigDump, Message)
+			utils.DumpConfig(self.ResponderConfigDump,str(self))
+		except AttributeError as ex:
+			print "Missing Module:", ex
+			pass
 
 def init():
 	global Config

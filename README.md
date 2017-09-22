@@ -1,6 +1,6 @@
-# Responder.py #
+# Responder/MultiRelay #
 
-LLMNR/NBT-NS/mDNS Poisoner
+LLMNR/NBT-NS/mDNS Poisoner and NTLMv1/2 Relay.
 
 Author: Laurent Gaffie <laurent.gaffie@gmail.com >  https://g-laurent.blogspot.com
 
@@ -89,7 +89,7 @@ Additionally, all captured hashed are logged into an SQLite database which you c
 
 ## Considerations ##
 
-- This tool listens on several ports: UDP 137, UDP 138, UDP 53, UDP/TCP 389,TCP 1433, TCP 80, TCP 139, TCP 445, TCP 21, TCP 3141,TCP 25, TCP 110, TCP 587, TCP 3128 and Multicast UDP 5553.
+- This tool listens on several ports: UDP 137, UDP 138, UDP 53, UDP/TCP 389,TCP 1433, UDP 1434, TCP 80, TCP 139, TCP 445, TCP 21, TCP 3141,TCP 25, TCP 110, TCP 587, TCP 3128 and Multicast UDP 5553.
 
 - If you run Samba on your system, stop smbd and nmbd and all other services listening on these ports.
 
@@ -162,15 +162,37 @@ Options:
 	  -v, --verbose         Increase verbosity.
 	
 
+## Donation ##
+
+You can contribute to this project by donating to the following BTC address:
+
+1Pv9rZMNfy9hsW19eQhNGs22gY9sf6twjW
 
 
+## Acknowledgments ##
+
+Late Responder development has been possible because of the donations received from individuals and companies.
+
+We would like to thanks those major donator:
+
+- SecureWorks : https://www.secureworks.com/
+
+- Black Hills Information Security: http://www.blackhillsinfosec.com/
+
+- TrustedSec: https://www.trustedsec.com/
+
+- And all, ALL the pentesters around the world who donated to this project.
+
+Thank you.
 
 ## Copyright ##
 
 NBT-NS/LLMNR Responder
 
 Responder, a network take-over set of tools created and maintained by Laurent Gaffie.
+
 email: laurent.gaffie@gmail.com
+
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
